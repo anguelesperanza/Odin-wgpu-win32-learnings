@@ -343,6 +343,9 @@ main :: proc() {
 	}
 
 	// Release resources
+	wgpu.RenderPipelineRelease(renderPipeline = state.pipeline)
+	wgpu.PipelineLayoutRelease(pipelineLayout = state.pipeline_layout)
+	wgpu.ShaderModuleRelease(shaderModule = state.module)
 	wgpu.DeviceRelease(device = state.device)
 	wgpu.AdapterRelease(adapter = state.adapter)
 	wgpu.SurfaceRelease(surface = state.surface)
