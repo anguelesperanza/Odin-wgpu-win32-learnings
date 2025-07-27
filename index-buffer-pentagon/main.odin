@@ -8,19 +8,22 @@ import "base:runtime"
 import "core:os/os2"
 
 /*
-	WGPU Examples: Vertex Buffer to make a RGB Triangle
+	WGPU Examples: Index Buffer Pentagon 
 	====================================================
 	Disclaimer: I am not a win32 expert. I am not a WGPU expert.
 	As such, this example is pulled together using the following resources:
 	-----------------------------------------------------------------------
 	This example is based on:
-		https://github.com/amengede/wgpu/blob/main/04-vertex-buffers/src/renderer_backend/pipeline_builder.rs
 		https://sotrh.github.io/learn-wgpu/beginner/tutorial4-buffer/#we-re-finally-talking-about-them
-
 	Rather than using the shader.wgsl to determine the verticies and color,
 	they are created in main.odin (this file) in the:
 		Vertex struct
 		verticies array
+
+	This file is for the later half of the above github.io article -- the index buffer
+	for the vertex buffer, please refer to: https://github.com/anguelesperanza/Odin-wgpu-win32-learnings/tree/main/vertex-buffer-rgb-triangle
+
+	This makes a megenta/violet looking pentagon
 	-----------------------------------------------------------------------
 */
 
@@ -39,20 +42,37 @@ state: struct {
 	pipeline_layout: wgpu.PipelineLayout,
 	pipeline:       wgpu.RenderPipeline,
 	vertex_buffer: wgpu.Buffer,
+	index_buffer: wgpu.Buffer,
 }
-
 
 Vertex :: struct {
 	position:[3]f32,
 	color:[3]f32,
 }
 
-
-vertices:[3]Vertex = {
-	{position = {0.0, 0.5, 0.0}, color = {1.0, 0.0, 0.0}},
-	{position = {-0.5, -0.5, 0.0}, color = {0.0, 1.0, 0.0}},
-	{position = {0.5, -0.5, 0.0}, color = {0.0, 0.0, 1.0 }},
+vertices:[5]Vertex = {
+  { position = {-0.0868241, 0.49240386, 0.0}, color = {0.5, 0.0, 0.5} }, // A
+  { position = {-0.49513406, 0.06958647, 0.0}, color = {0.5, 0.0, 0.5} }, // B
+  { position = {-0.21918549, -0.44939706, 0.0}, color = {0.5, 0.0, 0.5} }, // C
+  { position = {0.35966998, -0.3473291, 0.0}, color = {0.5, 0.0, 0.5} }, // D
+  { position = {0.44147372, 0.2347359, 0.0}, color = {0.5, 0.0, 0.5} }, // E
 }
+
+
+// REason why indices are [10]u16 and not [9]u16
+// In wgpu, data needs to be aligned to 4 bytes.
+// [9]u16 == 18 bytes) | the extra 0 makes indices 20 bytes long
+// However, we don't need the extra data, so when calling the size of indices,
+// we need to '- 1' from the number, to get 9
+//   - This is why there is len(indices) - 1 in the code, to get the 9 points points and not the 10th 
+indices:[10]u16 = {
+	0, 1, 4,
+	1, 2, 4,
+	2, 3, 4,
+	0,
+}
+
+  
 // Main loop for windows
 running := true
 
@@ -233,6 +253,18 @@ main :: proc() {
 		data = vertices[:]
 	)
 
+
+	index_buffer_with_data_desc:wgpu.BufferWithDataDescriptor =  wgpu.BufferWithDataDescriptor {
+		label = "Data Supplied Pentagon Buffer Desc",
+		usage = {.Index, .CopySrc}
+	}
+
+	state.index_buffer = wgpu.DeviceCreateBufferWithDataSlice(
+		device = state.device,
+		descriptor = &index_buffer_with_data_desc,
+		data = indices[:]
+	)
+	
 	vertex_attributes:[2]wgpu.VertexAttribute = {
 		wgpu.VertexAttribute {
 			format = .Float32x3,
@@ -360,8 +392,6 @@ main :: proc() {
 			descriptor = &render_pass
 		)
 
-
-
 		wgpu.RenderPassEncoderSetPipeline(
 			renderPassEncoder = pass,
 			pipeline = state.pipeline,
@@ -375,11 +405,21 @@ main :: proc() {
 			size = size_of(vertices), // Can cause error if higher than 0...find out why
 		)
 
-		wgpu.RenderPassEncoderDraw(
+		
+		wgpu.RenderPassEncoderSetIndexBuffer(
 			renderPassEncoder = pass,
-			vertexCount = 3,
+			buffer = state.index_buffer,
+			format = .Uint16,
+			offset = 0,
+			size = size_of(indices) - 1
+		)
+
+		wgpu.RenderPassEncoderDrawIndexed(
+			renderPassEncoder = pass ,
+			indexCount = len(indices) - 1,
 			instanceCount = 1,
-			firstVertex = 0,
+			firstIndex = 0,
+			baseVertex = 0,
 			firstInstance = 0,
 		)
 

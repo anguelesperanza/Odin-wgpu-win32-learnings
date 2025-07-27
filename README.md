@@ -20,3 +20,4 @@ Currenlt folders in repository
 init-window -> Shows how to make a basic win32 window, init wgpu and connect the two together
 triangle -> Shows how to render a triangle
 vertex-buffer-rgb-triangle -> Shows how to use a vertex buffer to generate an rgb triangle
+index-buffer-pentagon -> Shows how to use an index buffer to produce a shape (pentagon in this example)
