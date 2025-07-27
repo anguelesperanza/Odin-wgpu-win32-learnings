@@ -12,3 +12,11 @@ As is the case with my GDI learnings, numerous tools were used in creating these
 ranging from webites, other repositories, and AI tools as well. I try and credit when and where but I do forget at times.
 
 There is no license for this repository; it's just a dump of examples I made, I'm not married to them one way or another.
+
+==========================
+
+Currenlt folders in repository
+
+init-window -> Shows how to make a basic win32 window, init wgpu and connect the two together
+triangle -> Shows how to render a triangle
+vertex-buffer-rgb-triangle -> Shows how to use a vertex buffer to generate an rgb triangle
