@@ -24,6 +24,9 @@ import "core:os/os2"
 	for the vertex buffer, please refer to: https://github.com/anguelesperanza/Odin-wgpu-win32-learnings/tree/main/vertex-buffer-rgb-triangle
 
 	This makes a megenta/violet looking pentagon
+
+	Used ChatGPT: https://chatgpt.com/
+		- Explained byte alignment and helped fix issue (see indices explination in code)
 	-----------------------------------------------------------------------
 */
 
