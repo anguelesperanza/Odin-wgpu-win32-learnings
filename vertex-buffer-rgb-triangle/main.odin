@@ -1,58 +1,34 @@
 package main
 
-
 import "core:fmt"
 import "vendor:wgpu"
 import win "core:sys/windows"
 import "base:runtime"
-import "core:os/os2"
 
 /*
-	WGPU Examples: Vertex Buffer to make a RGB Triangle
-	====================================================
-	Disclaimer: I am not a win32 expert. I am not a WGPU expert.
-	As such, this example is pulled together using the following resources:
-	-----------------------------------------------------------------------
-	This example is based on:
-		https://github.com/amengede/wgpu/blob/main/04-vertex-buffers/src/renderer_backend/pipeline_builder.rs
-		https://sotrh.github.io/learn-wgpu/beginner/tutorial4-buffer/#we-re-finally-talking-about-them
-
-	Rather than using the shader.wgsl to determine the verticies and color,
-	they are created in main.odin (this file) in the:
-		Vertex struct
-		verticies array
-	-----------------------------------------------------------------------
+	This is a flappy bird clone using wgpu
 */
 
 // Structs -- no OS in state as only using on windows
 state: struct {
 	ctx:            runtime.Context,
 
+
+	// Window related things
+
 	// All of the below are of type: distinct rawptr
-	instance:       wgpu.Instance,
-	surface:        wgpu.Surface, 
-	adapter:        wgpu.Adapter, 
-	device:         wgpu.Device,
-	config:         wgpu.SurfaceConfiguration,
-	queue:          wgpu.Queue,
-	module:         wgpu.ShaderModule,
-	pipeline_layout: wgpu.PipelineLayout,
-	pipeline:       wgpu.RenderPipeline,
-	vertex_buffer: wgpu.Buffer,
+	instance:       wgpu.Instance, // wgpu instance
+	surface:        wgpu.Surface, // Area to render graphics to
+	adapter:        wgpu.Adapter, // Physical GPU hardware or software renderer
+	device:         wgpu.Device, // way to issue GPU commands
+	config:         wgpu.SurfaceConfiguration, // settings for the surface
+	queue:          wgpu.Queue, // Where to send commands to for device
+	module:         wgpu.ShaderModule, // The shader
+	pipeline_layout: wgpu.PipelineLayout, // Describes to the GPU how the data will be used
+	pipeline:       wgpu.RenderPipeline, // Shows how the GPU should render things
+	vertex_buffer: wgpu.Buffer, // Stores the buffer for vertex drawn shapes
 }
 
-
-Vertex :: struct {
-	position:[3]f32,
-	color:[3]f32,
-}
-
-
-vertices:[3]Vertex = {
-	{position = {0.0, 0.5, 0.0}, color = {1.0, 0.0, 0.0}},
-	{position = {-0.5, -0.5, 0.0}, color = {0.0, 1.0, 0.0}},
-	{position = {0.5, -0.5, 0.0}, color = {0.0, 0.0, 1.0 }},
-}
 // Main loop for windows
 running := true
 
@@ -77,6 +53,7 @@ on_adapter :: proc "c" (status: wgpu.RequestAdapterStatus, adapter: wgpu.Adapter
 
 	state.adapter = adapter
 }
+
 
 // Callback function for handling events
 window_event_proc :: proc "stdcall" (
@@ -108,22 +85,10 @@ window_event_proc :: proc "stdcall" (
 	return win.DefWindowProcW(window, message, wParam, lParam)
 }
 
-
+//main
 main :: proc() {
-	
-	// Reading in the shader from a file. For the pipeline, the shader code is a string (well, StringView)
-	// You can pass the shader in as a string directly, but if its saved to a file,
-	// you cannot pass in file name, but the actual contents of the file; thus,
-	// reading in the file first, converiting it to a string, and passing that.
-	// Reading shader so early as switching context causes it to read an empty list
-	//     -- not familiar with how context works at all to work around this to know the proper way of doing this
 
-	shader_data, err := os2.read_entire_file_from_path(name = "./shader.wgsl", allocator = context.allocator)
-	if err != nil {
-		panic("Cannot read shader file") // panicing cause I don't know what else to do, probably not the most advised option
-	}
-	
-	shader_text := string(shader_data)
+	shader:string = load_shader(filename = "shader.wgsl")
 
 	context = state.ctx
 
@@ -135,7 +100,7 @@ main :: proc() {
 		style = win.CS_OWNDC | win.CS_HREDRAW | win.CS_VREDRAW,
 		lpfnWndProc = window_event_proc, // [] created callback function
 		hInstance = window_instance,
-		lpszClassName = win.L("VertexRGBTriangleWgpuWindowClass"),		
+		lpszClassName = win.L("WgpuWindowClass"),		
 	}
 
 	win.RegisterClassW(lpWndClass = &window_class) // Register the class
@@ -144,7 +109,7 @@ main :: proc() {
 	window := win.CreateWindowExW(
 		dwExStyle = 0,
 		lpClassName = window_class.lpszClassName,
-		lpWindowName = win.L("WGPU Vertex RBG Triangle Window"),
+		lpWindowName = win.L("WGPU Init Window"),
 		dwStyle = win.WS_OVERLAPPED | win.WS_VISIBLE | win.WS_SYSMENU,
 		X = 0,
 		Y = 0,
@@ -163,6 +128,9 @@ main :: proc() {
 		panic("WebGPU (WGPU) is not supported")
 	}
 
+	// The parts of the window/screen that is drawn to
+	// This part is confusing as there's a lot of structs
+	// It's easy to lose the order of it all
 	state.surface = wgpu.InstanceCreateSurface(
 		instance = state.instance,
 		descriptor = &wgpu.SurfaceDescriptor {
@@ -189,8 +157,15 @@ main :: proc() {
 		callbackInfo = {callback = on_device},
 	)
 
+	for state.device == nil {
+		fmt.println("device is nil; waiting for device!")	
+	}
+
 	state.queue = wgpu.DeviceGetQueue(device = state.device)
 	
+	// WGPU doesn't use a Swap Chain (deprecated and removed from the API)
+	// Instead, the surface is used directly -- AI lead me down the wrong path at first with Swap Chain; 'fun' times part 2 
+
 	surface_config:wgpu.SurfaceConfiguration = {
 		usage = { .RenderAttachment},
 		format = .BGRA8Unorm,
@@ -202,97 +177,13 @@ main :: proc() {
 
 	wgpu.SurfaceConfigure(surface = state.surface, config = &surface_config)
 
-	// triangle:Triangle
-	// triangle.buffer = make_triangle_buffer(state.device)
-	// triangle.vertex_buffer_layout = get_triangle_buffer_layout() 
-
-	// Pipeline -- Shaders: Using WGLS as shader language
-	state.module = wgpu.DeviceCreateShaderModule(
-		device = state.device,
-		descriptor = &wgpu.ShaderModuleDescriptor {
-			label = "Shader",
-			nextInChain = &wgpu.ShaderSourceWGSL {
-				chain = wgpu.ChainedStruct {
-					sType = .ShaderSourceWGSL,
-				}, //end of &wgpu.ChainedStruct
-				code = shader_text
-			}, // end of &wgpu.ShaderSourceWGSL
-		}, // end of &ShaderModuleDescriptor
-	)
-
-	// Create a buffer Descriptor
-	// -- Using a buffer with data so using this version
-	buffer_with_data_desc:wgpu.BufferWithDataDescriptor =  wgpu.BufferWithDataDescriptor {
-		label = "Data Supplied Triangle Buffer Desc",
-		usage = {.Vertex}
-	}
-
-	state.vertex_buffer = wgpu.DeviceCreateBufferWithDataSlice(
-		device = state.device,
-		descriptor = &buffer_with_data_desc,
-		data = vertices[:]
-	)
-
-	vertex_attributes:[2]wgpu.VertexAttribute = {
-		wgpu.VertexAttribute {
-			format = .Float32x3,
-			offset = 0,
-			shaderLocation = 0,
-		},
-		wgpu.VertexAttribute {
-			format = .Float32x3,
-			offset = size_of([3]f32),
-			shaderLocation = 1,
-		},
-	}
-	vertex_buffer_layout:wgpu.VertexBufferLayout = {
-		stepMode = .Vertex,
-		arrayStride = size_of(Vertex),
-		attributeCount = 2,
-		attributes = raw_data(vertex_attributes[:]),
-	}
-
-	total_buffer_layout:[1]wgpu.VertexBufferLayout
-	total_buffer_layout[0] = vertex_buffer_layout
-
-	// Pipeline -- Pipeline Layout
-	state.pipeline_layout = wgpu.DeviceCreatePipelineLayout	(
-		device = state.device,
-		descriptor = &{}, // end of &wgpu.RenderPipelineDescriptor
-	)
-	// Pipeline -- The pipeline
-	state.pipeline = wgpu.DeviceCreateRenderPipeline (
-		device = state.device,
-		descriptor = &wgpu.RenderPipelineDescriptor {
-			label = "RenderPipline",
-			layout = state.pipeline_layout,
-			vertex = wgpu.VertexState {
-				module = state.module, // Shader
-				entryPoint = "vs_main",
-				buffers = raw_data(total_buffer_layout[:]),
-				bufferCount = 1,
-			}, // end of wgpu.VertexState
-			fragment = &wgpu.FragmentState {
-				module = state.module, // Shader
-				entryPoint = "fs_main",
-				targetCount = 1,
-				targets = &wgpu.ColorTargetState {
-					format = .BGRA8Unorm,
-					writeMask = wgpu.ColorWriteMaskFlags_All,
-				},
-			}, // end of &wgpu.FragmentState
-			primitive = {
-				topology = .TriangleList,
-			}, // end of primitive (shape to draw)
-
-			multisample = {
-				count = 1,
-				mask = 0xFFFFFFFF,
-			} // end of multisample
-			
-		}, // en dof &wgpu.RenderPipelineDescriptor
-	)
-
+	state.vertex_buffer = create_triangle_vertex_buffer()
+	state.module = create_shader_module(shader)
+	state.pipeline_layout = create_pipeline_layout()
+	vb_layout:[1]wgpu.VertexBufferLayout
+	vb_layout[0] = create_triangle_vertex_buffer_layout()
+	state.pipeline = create_pipeline_with_vertex_buffer(vb_layout[:])
+		
 	// message/event loop
 	message:win.MSG
 	for running {
@@ -359,28 +250,27 @@ main :: proc() {
 			commandEncoder = encoder,
 			descriptor = &render_pass
 		)
-
-
-
+	
 		wgpu.RenderPassEncoderSetPipeline(
 			renderPassEncoder = pass,
-			pipeline = state.pipeline,
+			pipeline = state.pipeline, 
 		)
+
 
 		wgpu.RenderPassEncoderSetVertexBuffer(
 			renderPassEncoder = pass,
 			slot = 0,
 			buffer = state.vertex_buffer,
 			offset = 0,
-			size = size_of(vertices), // Can cause error if higher than 0...find out why
+			size = size_of([3]Vertex),
 		)
-
+		
 		wgpu.RenderPassEncoderDraw(
 			renderPassEncoder = pass,
 			vertexCount = 3,
 			instanceCount = 1,
 			firstVertex = 0,
-			firstInstance = 0,
+			firstInstance = 0
 		)
 
 		wgpu.RenderPassEncoderEnd(pass)
@@ -390,6 +280,7 @@ main :: proc() {
 			commandEncoder = encoder,
 			descriptor = nil
 		)
+
 		wgpu.QueueSubmit(queue = state.queue, commands = {cmd_buffer})
 
 		// Present
