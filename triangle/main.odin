@@ -21,22 +21,28 @@ import "core:os/os2"
 	Odin WGPU Examples Repository: https://github.com/odin-lang/examples/tree/master/wgpu
 	Learn Wgpu (Good reference; written in rust so hard to read, good paragraphs): https://sotrh.github.io/learn-wgpu/
 	My general knowledge on win32 (when using GDI): https://github.com/anguelesperanza/Odin-Win32-Graphics-Examples/tree/main
+
+	Last updated: 8/7/2025
 */
+
 
 // Structs -- no OS in state as only using on windows
 state: struct {
 	ctx:            runtime.Context,
 
+
+	// Window related things
+
 	// All of the below are of type: distinct rawptr
-	instance:       wgpu.Instance,
-	surface:        wgpu.Surface, 
-	adapter:        wgpu.Adapter, 
-	device:         wgpu.Device,
-	config:         wgpu.SurfaceConfiguration,
-	queue:          wgpu.Queue,
-	module:         wgpu.ShaderModule,
-	pipeline_layout: wgpu.PipelineLayout,
-	pipeline:       wgpu.RenderPipeline,
+	instance:       wgpu.Instance, // wgpu instance
+	surface:        wgpu.Surface, // Area to render graphics to
+	adapter:        wgpu.Adapter, // Physical GPU hardware or software renderer
+	device:         wgpu.Device, // way to issue GPU commands
+	config:         wgpu.SurfaceConfiguration, // settings for the surface
+	queue:          wgpu.Queue, // Where to send commands to for device
+	module:         wgpu.ShaderModule, // The shader
+	pipeline_layout: wgpu.PipelineLayout, // Describes to the GPU how the data will be used
+	pipeline:       wgpu.RenderPipeline, // Shows how the GPU should render things
 }
 
 // Main loop for windows
@@ -63,6 +69,7 @@ on_adapter :: proc "c" (status: wgpu.RequestAdapterStatus, adapter: wgpu.Adapter
 
 	state.adapter = adapter
 }
+
 
 // Callback function for handling events
 window_event_proc :: proc "stdcall" (
@@ -96,20 +103,8 @@ window_event_proc :: proc "stdcall" (
 
 
 main :: proc() {
-	
-	// Reading in the shader from a file. For the pipeline, the shader code is a string (well, StringView)
-	// You can pass the shader in as a string directly, but if its saved to a file,
-	// you cannot pass in file name, but the actual contents of the file; thus,
-	// reading in the file first, converiting it to a string, and passing that.
-	// Reading shader so early as switching context causes it to read an empty list
-	//     -- not familiar with how context works at all to work around this to know the proper way of doing this
 
-	shader_data, err := os2.read_entire_file_from_path(name = "./shader.wgsl", allocator = context.allocator)
-	if err != nil {
-		panic("Cannot read shader file") // panicing cause I don't know what else to do, probably not the most advised option
-	}
-	
-	shader_text := string(shader_data)
+	shader:string = load_shader(filename = "shader.wgsl")
 
 	context = state.ctx
 
@@ -121,7 +116,7 @@ main :: proc() {
 		style = win.CS_OWNDC | win.CS_HREDRAW | win.CS_VREDRAW,
 		lpfnWndProc = window_event_proc, // [] created callback function
 		hInstance = window_instance,
-		lpszClassName = win.L("TriangleWgpuWindowClass"),		
+		lpszClassName = win.L("WgpuWindowClass"),		
 	}
 
 	win.RegisterClassW(lpWndClass = &window_class) // Register the class
@@ -130,7 +125,7 @@ main :: proc() {
 	window := win.CreateWindowExW(
 		dwExStyle = 0,
 		lpClassName = window_class.lpszClassName,
-		lpWindowName = win.L("WGPU Triangle Window"),
+		lpWindowName = win.L("WGPU Init Window"),
 		dwStyle = win.WS_OVERLAPPED | win.WS_VISIBLE | win.WS_SYSMENU,
 		X = 0,
 		Y = 0,
@@ -149,6 +144,9 @@ main :: proc() {
 		panic("WebGPU (WGPU) is not supported")
 	}
 
+	// The parts of the window/screen that is drawn to
+	// This part is confusing as there's a lot of structs
+	// It's easy to lose the order of it all
 	state.surface = wgpu.InstanceCreateSurface(
 		instance = state.instance,
 		descriptor = &wgpu.SurfaceDescriptor {
@@ -175,8 +173,15 @@ main :: proc() {
 		callbackInfo = {callback = on_device},
 	)
 
+	for state.device == nil {
+		fmt.println("device is nil; waiting for device!")	
+	}
+
 	state.queue = wgpu.DeviceGetQueue(device = state.device)
 	
+	// WGPU doesn't use a Swap Chain (deprecated and removed from the API)
+	// Instead, the surface is used directly -- AI lead me down the wrong path at first with Swap Chain; 'fun' times part 2 
+
 	surface_config:wgpu.SurfaceConfiguration = {
 		usage = { .RenderAttachment},
 		format = .BGRA8Unorm,
@@ -188,57 +193,10 @@ main :: proc() {
 
 	wgpu.SurfaceConfigure(surface = state.surface, config = &surface_config)
 
-	// Pipeline -- Shaders: Using WGLS as shader language
-	state.module = wgpu.DeviceCreateShaderModule(
-		device = state.device,
-		descriptor = &wgpu.ShaderModuleDescriptor {
-			label = "Shader",
-			nextInChain = &wgpu.ShaderSourceWGSL {
-				chain = wgpu.ChainedStruct {
-					sType = .ShaderSourceWGSL,
-				}, //end of &wgpu.ChainedStruct
-				code = shader_text
-			}, // end of &wgpu.ShaderSourceWGSL
-		}, // end of &ShaderModuleDescriptor
-	)
-
-
-	// Pipeline -- Pipeline Layout
-	state.pipeline_layout = wgpu.DeviceCreatePipelineLayout	(
-		device = state.device,
-		descriptor = &{}, // end of &wgpu.RenderPipelineDescriptor
-	)
-	// Pipeline -- The pipeline
-	state.pipeline = wgpu.DeviceCreateRenderPipeline	(
-		device = state.device,
-		descriptor = &wgpu.RenderPipelineDescriptor {
-			label = "RenderPipline",
-			layout = state.pipeline_layout,
-			vertex = wgpu.VertexState {
-				module = state.module, // Shader
-				entryPoint = "vs_main",
-			}, // end of wgpu.VertexState
-			fragment = &wgpu.FragmentState {
-				module = state.module, // Shader
-				entryPoint = "fs_main",
-				targetCount = 1,
-				targets = &wgpu.ColorTargetState {
-					format = .BGRA8Unorm,
-					writeMask = wgpu.ColorWriteMaskFlags_All,
-				},
-			}, // end of &wgpu.FragmentState
-			primitive = {
-				topology = .TriangleList,
-			}, // end of primitive (shape to draw)
-
-			multisample = {
-				count = 1,
-				mask = 0xFFFFFFFF,
-			} // end of multisample
-			
-		}, // en dof &wgpu.RenderPipelineDescriptor
-	)
-	
+	state.module = create_shader_module(shader)
+	state.pipeline_layout = create_pipeline_layout()
+	state.pipeline = create_pipeline()
+		
 	// message/event loop
 	message:win.MSG
 	for running {
@@ -305,12 +263,10 @@ main :: proc() {
 			commandEncoder = encoder,
 			descriptor = &render_pass
 		)
-
-
-
+	
 		wgpu.RenderPassEncoderSetPipeline(
 			renderPassEncoder = pass,
-			pipeline = state.pipeline,
+			pipeline = state.pipeline, 
 		)
 
 		wgpu.RenderPassEncoderDraw(
@@ -318,10 +274,8 @@ main :: proc() {
 			vertexCount = 3,
 			instanceCount = 1,
 			firstVertex = 0,
-			firstInstance = 0,
+			firstInstance = 0
 		)
-
-		
 
 		wgpu.RenderPassEncoderEnd(pass)
 		wgpu.RenderPassEncoderRelease(pass)
