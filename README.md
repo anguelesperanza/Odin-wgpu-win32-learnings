@@ -18,6 +18,18 @@ There is no license for this repository; it's just a dump of examples I made, I'
 Currenlt folders in repository
 
 init-window -> Shows how to make a basic win32 window, init wgpu and connect the two together
+
 triangle -> Shows how to render a triangle
+
 vertex-buffer-rgb-triangle -> Shows how to use a vertex buffer to generate an rgb triangle
+
 index-buffer-pentagon -> Shows how to use an index buffer to produce a shape (pentagon in this example)
+
+index-buffer-rgb-quad -> Shows how to use an index buffer to produce an rgp quad (quad in this this example)
+
+index-buffer-rgb-pentagon -> Shows how to use an index buffer to produce an rgb pentagon (quad in this this example)
+
+texture-quad -> Shows how to render an image onto a quad (turn image into texture)
+  -> This folder contains multiple images, board.png and quad.png are used for debugging to tell if an image is skwewd
+    image.png is the actual image to use to convert to a texture
+    You can use the debugging textures by changing the image that is loaded at the start of the main proc
