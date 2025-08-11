@@ -11,7 +11,6 @@ more frustraiting than it's worth learning -- but the repo will remain nonethele
 As is the case with my GDI learnings, numerous tools were used in creating these examples,
 ranging from webites, other repositories, and AI tools as well. I try and credit when and where but I do forget at times.
 
-There is no license for this repository; it's just a dump of examples I made, I'm not married to them one way or another.
 
 ==========================
 
