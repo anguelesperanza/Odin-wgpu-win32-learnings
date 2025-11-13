@@ -8,7 +8,7 @@ import "base:runtime"
 import "core:os/os2"
 
 /*
-	WGPU Examples: Index Buffer Pentagon 
+	WGPU Examples: Index Buffer Pentagon
 	====================================================
 	Disclaimer: I am not a win32 expert. I am not a WGPU expert.
 	As such, this example is pulled together using the following resources:
@@ -36,8 +36,8 @@ state: struct {
 
 	// All of the below are of type: distinct rawptr
 	instance:       wgpu.Instance,
-	surface:        wgpu.Surface, 
-	adapter:        wgpu.Adapter, 
+	surface:        wgpu.Surface,
+	adapter:        wgpu.Adapter,
 	device:         wgpu.Device,
 	config:         wgpu.SurfaceConfiguration,
 	queue:          wgpu.Queue,
@@ -67,7 +67,7 @@ vertices:[5]Vertex = {
 // [9]u16 == 18 bytes) | the extra 0 makes indices 20 bytes long
 // However, we don't need the extra data, so when calling the size of indices,
 // we need to '- 1' from the number, to get 9
-//   - This is why there is len(indices) - 1 in the code, to get the 9 points points and not the 10th 
+//   - This is why there is len(indices) - 1 in the code, to get the 9 points points and not the 10th
 indices:[10]u16 = {
 	0, 1, 4,
 	1, 2, 4,
@@ -75,7 +75,7 @@ indices:[10]u16 = {
 	0,
 }
 
-  
+
 // Main loop for windows
 running := true
 
@@ -87,7 +87,7 @@ on_device :: proc "c" (status: wgpu.RequestDeviceStatus, device: wgpu.Device, me
 		if status != .Success || device == nil {
 			fmt.panicf("request device failure: [%v] %s", status, message)
 		}
-		state.device = device 
+		state.device = device
 }
 
 on_adapter :: proc "c" (status: wgpu.RequestAdapterStatus, adapter: wgpu.Adapter, message:wgpu.StringView, userdata1:rawptr, userdata2:rawptr){
@@ -133,7 +133,7 @@ window_event_proc :: proc "stdcall" (
 
 
 main :: proc() {
-	
+
 	// Reading in the shader from a file. For the pipeline, the shader code is a string (well, StringView)
 	// You can pass the shader in as a string directly, but if its saved to a file,
 	// you cannot pass in file name, but the actual contents of the file; thus,
@@ -145,7 +145,7 @@ main :: proc() {
 	if err != nil {
 		panic("Cannot read shader file") // panicing cause I don't know what else to do, probably not the most advised option
 	}
-	
+
 	shader_text := string(shader_data)
 
 	context = state.ctx
@@ -158,7 +158,7 @@ main :: proc() {
 		style = win.CS_OWNDC | win.CS_HREDRAW | win.CS_VREDRAW,
 		lpfnWndProc = window_event_proc, // [] created callback function
 		hInstance = window_instance,
-		lpszClassName = win.L("VertexRGBTriangleWgpuWindowClass"),		
+		lpszClassName = win.L("VertexRGBTriangleWgpuWindowClass"),
 	}
 
 	win.RegisterClassW(lpWndClass = &window_class) // Register the class
@@ -213,7 +213,7 @@ main :: proc() {
 	)
 
 	state.queue = wgpu.DeviceGetQueue(device = state.device)
-	
+
 	surface_config:wgpu.SurfaceConfiguration = {
 		usage = { .RenderAttachment},
 		format = .BGRA8Unorm,
@@ -227,7 +227,7 @@ main :: proc() {
 
 	// triangle:Triangle
 	// triangle.buffer = make_triangle_buffer(state.device)
-	// triangle.vertex_buffer_layout = get_triangle_buffer_layout() 
+	// triangle.vertex_buffer_layout = get_triangle_buffer_layout()
 
 	// Pipeline -- Shaders: Using WGLS as shader language
 	state.module = wgpu.DeviceCreateShaderModule(
@@ -267,7 +267,7 @@ main :: proc() {
 		descriptor = &index_buffer_with_data_desc,
 		data = indices[:]
 	)
-	
+
 	vertex_attributes:[2]wgpu.VertexAttribute = {
 		wgpu.VertexAttribute {
 			format = .Float32x3,
@@ -324,7 +324,7 @@ main :: proc() {
 				count = 1,
 				mask = 0xFFFFFFFF,
 			} // end of multisample
-			
+
 		}, // en dof &wgpu.RenderPipelineDescriptor
 	)
 
@@ -336,7 +336,7 @@ main :: proc() {
 			win.DispatchMessageW(lpMsg = &message)
 		}
 
-		// Render loop 
+		// Render loop
 		// Get next frame
 		surface_texture:wgpu.SurfaceTexture
 		texture_view:wgpu.TextureView
@@ -352,7 +352,7 @@ main :: proc() {
 			if surface_texture.texture != nil {
 				wgpu.TextureRelease(surface_texture.texture)
 			}
-			
+
 			new_surface_config:wgpu.SurfaceConfiguration = {
 				usage = { .RenderAttachment},
 				format = .BGRA8Unorm,
@@ -361,9 +361,9 @@ main :: proc() {
 				presentMode = .Fifo,
 				device = state.device,
 			}
-			
+
 			wgpu.SurfaceConfigure(surface = state.surface, config = &surface_config)
-			
+
 			return
 		case .OutOfMemory, .DeviceLost, .Error:
 			// Fatal error
@@ -374,7 +374,7 @@ main :: proc() {
 			texture = surface_texture.texture,
 			descriptor = nil
 		)
-		
+
 		// Clear Screen -- All of this will clear the screen and draw a blue/purple screen on it
 		encoder := 	wgpu.DeviceCreateCommandEncoder(
 			device = state.device,
@@ -385,6 +385,7 @@ main :: proc() {
 		color_attachment.loadOp = .Clear
 		color_attachment.clearValue = {0.2, 0.2, 0.4, 1.0}
 		color_attachment.storeOp = .Store
+		color_attachment.depthSlice = wgpu.DEPTH_SLICE_UNDEFINED
 
 		render_pass:wgpu.RenderPassDescriptor
 		render_pass.colorAttachmentCount = 1
@@ -408,7 +409,7 @@ main :: proc() {
 			size = size_of(vertices), // Can cause error if higher than 0...find out why
 		)
 
-		
+
 		wgpu.RenderPassEncoderSetIndexBuffer(
 			renderPassEncoder = pass,
 			buffer = state.index_buffer,

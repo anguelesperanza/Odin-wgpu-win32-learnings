@@ -1,10 +1,10 @@
 package main
 
 
-import "core:fmt"
-import "vendor:wgpu"
-import win "core:sys/windows"
-import "base:runtime"
+import "core:fmt" // Used to print stuff out for debugging
+import "vendor:wgpu" // Our WGPU import
+import win "core:sys/windows" // Used to make the window
+import "base:runtime" // Used to handle the context
 
 /*
 	WGPU Examples: Making a win32 compatible WGPU window
@@ -31,14 +31,12 @@ state: struct {
 
 	// All of the below are of type: distinct rawptr
 	instance:       wgpu.Instance,
-	surface:        wgpu.Surface, 
-	adapter:        wgpu.Adapter, 
+	surface:        wgpu.Surface,
+	adapter:        wgpu.Adapter,
 	device:         wgpu.Device,
 	config:         wgpu.SurfaceConfiguration,
 	queue:          wgpu.Queue,
 	module:         wgpu.ShaderModule,
-	pipline_layout: wgpu.PipelineLayout,
-	pipeline:       wgpu.RenderPipeline,
 }
 
 // Main loop for windows
@@ -52,7 +50,7 @@ on_device :: proc "c" (status: wgpu.RequestDeviceStatus, device: wgpu.Device, me
 		if status != .Success || device == nil {
 			fmt.panicf("request device failure: [%v] %s", status, message)
 		}
-		state.device = device 
+		state.device = device
 }
 
 on_adapter :: proc "c" (status: wgpu.RequestAdapterStatus, adapter: wgpu.Adapter, message:wgpu.StringView, userdata1:rawptr, userdata2:rawptr){
@@ -99,6 +97,8 @@ window_event_proc :: proc "stdcall" (
 
 
 main :: proc() {
+
+	fmt.println("main")
 	context = state.ctx
 
 	// Setup Win32
@@ -109,7 +109,7 @@ main :: proc() {
 		style = win.CS_OWNDC | win.CS_HREDRAW | win.CS_VREDRAW,
 		lpfnWndProc = window_event_proc, // [] created callback function
 		hInstance = window_instance,
-		lpszClassName = win.L("WgpuWindowClass"),		
+		lpszClassName = win.L("WgpuWindowClass"),
 	}
 
 	win.RegisterClassW(lpWndClass = &window_class) // Register the class
@@ -167,9 +167,9 @@ main :: proc() {
 	)
 
 	state.queue = wgpu.DeviceGetQueue(device = state.device)
-	
+
 	// WGPU doesn't use a Swap Chain (deprecated and removed from the API)
-	// Instead, the surface is used directly -- AI lead me down the wrong path at first with Swap Chain; 'fun' times part 2 
+	// Instead, the surface is used directly -- AI lead me down the wrong path at first with Swap Chain; 'fun' times part 2
 
 	surface_config:wgpu.SurfaceConfiguration = {
 		usage = { .RenderAttachment},
@@ -190,7 +190,7 @@ main :: proc() {
 			win.DispatchMessageW(lpMsg = &message)
 		}
 
-		// Render loop 
+		// Render loop
 		// Get next frame
 		surface_texture:wgpu.SurfaceTexture
 		texture_view:wgpu.TextureView
@@ -206,7 +206,7 @@ main :: proc() {
 			if surface_texture.texture != nil {
 				wgpu.TextureRelease(surface_texture.texture)
 			}
-			
+
 			new_surface_config:wgpu.SurfaceConfiguration = {
 				usage = { .RenderAttachment},
 				format = .BGRA8Unorm,
@@ -215,20 +215,20 @@ main :: proc() {
 				presentMode = .Fifo,
 				device = state.device,
 			}
-			
-			wgpu.SurfaceConfigure(surface = state.surface, config = &surface_config)
-			
+
+			wgpu.SurfaceConfigure(surface = state.surface, config = &new_surface_config)
+
 			return
 		case .OutOfMemory, .DeviceLost, .Error:
 			// Fatal error
-			fmt.panicf("[triangle] get_current_texture status=%v", surface_texture.status)
+			fmt.panicf("[init-window] get_current_texture status=%v", surface_texture.status)
 		}
 
 		texture_view = wgpu.TextureCreateView(
 			texture = surface_texture.texture,
 			descriptor = nil
 		)
-		
+
 		// Clear Screen -- All of this will clear the screen and draw a blue/purple screen on it
 		encoder := 	wgpu.DeviceCreateCommandEncoder(
 			device = state.device,
@@ -239,10 +239,12 @@ main :: proc() {
 		color_attachment.loadOp = .Clear
 		color_attachment.clearValue = {0.2, 0.2, 0.4, 1.0}
 		color_attachment.storeOp = .Store
+		color_attachment.depthSlice = wgpu.DEPTH_SLICE_UNDEFINED
 
 		render_pass:wgpu.RenderPassDescriptor
 		render_pass.colorAttachmentCount = 1
 		render_pass.colorAttachments = &color_attachment
+		render_pass.label = "Render Pass Descriptor"
 
 		pass:wgpu.RenderPassEncoder = wgpu.CommandEncoderBeginRenderPass(
 			commandEncoder = encoder,
@@ -253,7 +255,7 @@ main :: proc() {
 
 		cmd_buffer:wgpu.CommandBuffer =	wgpu.CommandEncoderFinish(
 			commandEncoder = encoder,
-			descriptor = nil
+			descriptor = nil,
 		)
 
 		wgpu.QueueSubmit(queue = state.queue, commands = {cmd_buffer})

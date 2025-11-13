@@ -8,7 +8,7 @@ import "base:runtime"
 import "core:os/os2"
 
 /*
-	WGPU Examples: Triangle 
+	WGPU Examples: Triangle
 	====================================================
 	Disclaimer: I am not a win32 expert. I am not a WGPU expert.
 	As such, this example is pulled together using the following resources:
@@ -56,7 +56,7 @@ on_device :: proc "c" (status: wgpu.RequestDeviceStatus, device: wgpu.Device, me
 		if status != .Success || device == nil {
 			fmt.panicf("request device failure: [%v] %s", status, message)
 		}
-		state.device = device 
+		state.device = device
 }
 
 on_adapter :: proc "c" (status: wgpu.RequestAdapterStatus, adapter: wgpu.Adapter, message:wgpu.StringView, userdata1:rawptr, userdata2:rawptr){
@@ -116,7 +116,7 @@ main :: proc() {
 		style = win.CS_OWNDC | win.CS_HREDRAW | win.CS_VREDRAW,
 		lpfnWndProc = window_event_proc, // [] created callback function
 		hInstance = window_instance,
-		lpszClassName = win.L("WgpuWindowClass"),		
+		lpszClassName = win.L("WgpuWindowClass"),
 	}
 
 	win.RegisterClassW(lpWndClass = &window_class) // Register the class
@@ -174,13 +174,13 @@ main :: proc() {
 	)
 
 	for state.device == nil {
-		fmt.println("device is nil; waiting for device!")	
+		fmt.println("device is nil; waiting for device!")
 	}
 
 	state.queue = wgpu.DeviceGetQueue(device = state.device)
-	
+
 	// WGPU doesn't use a Swap Chain (deprecated and removed from the API)
-	// Instead, the surface is used directly -- AI lead me down the wrong path at first with Swap Chain; 'fun' times part 2 
+	// Instead, the surface is used directly -- AI lead me down the wrong path at first with Swap Chain; 'fun' times part 2
 
 	surface_config:wgpu.SurfaceConfiguration = {
 		usage = { .RenderAttachment},
@@ -196,7 +196,7 @@ main :: proc() {
 	state.module = create_shader_module(shader)
 	state.pipeline_layout = create_pipeline_layout()
 	state.pipeline = create_pipeline()
-		
+
 	// message/event loop
 	message:win.MSG
 	for running {
@@ -205,7 +205,7 @@ main :: proc() {
 			win.DispatchMessageW(lpMsg = &message)
 		}
 
-		// Render loop 
+		// Render loop
 		// Get next frame
 		surface_texture:wgpu.SurfaceTexture
 		texture_view:wgpu.TextureView
@@ -221,7 +221,7 @@ main :: proc() {
 			if surface_texture.texture != nil {
 				wgpu.TextureRelease(surface_texture.texture)
 			}
-			
+
 			new_surface_config:wgpu.SurfaceConfiguration = {
 				usage = { .RenderAttachment},
 				format = .BGRA8Unorm,
@@ -230,9 +230,9 @@ main :: proc() {
 				presentMode = .Fifo,
 				device = state.device,
 			}
-			
+
 			wgpu.SurfaceConfigure(surface = state.surface, config = &surface_config)
-			
+
 			return
 		case .OutOfMemory, .DeviceLost, .Error:
 			// Fatal error
@@ -243,7 +243,7 @@ main :: proc() {
 			texture = surface_texture.texture,
 			descriptor = nil
 		)
-		
+
 		// Clear Screen -- All of this will clear the screen and draw a blue/purple screen on it
 		encoder := 	wgpu.DeviceCreateCommandEncoder(
 			device = state.device,
@@ -254,6 +254,7 @@ main :: proc() {
 		color_attachment.loadOp = .Clear
 		color_attachment.clearValue = {0.2, 0.2, 0.4, 1.0}
 		color_attachment.storeOp = .Store
+		color_attachment.depthSlice = wgpu.DEPTH_SLICE_UNDEFINED
 
 		render_pass:wgpu.RenderPassDescriptor
 		render_pass.colorAttachmentCount = 1
@@ -263,10 +264,10 @@ main :: proc() {
 			commandEncoder = encoder,
 			descriptor = &render_pass
 		)
-	
+
 		wgpu.RenderPassEncoderSetPipeline(
 			renderPassEncoder = pass,
-			pipeline = state.pipeline, 
+			pipeline = state.pipeline,
 		)
 
 		wgpu.RenderPassEncoderDraw(

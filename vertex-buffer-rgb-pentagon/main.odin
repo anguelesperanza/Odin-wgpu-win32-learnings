@@ -178,7 +178,6 @@ main :: proc() {
 
 	wgpu.SurfaceConfigure(surface = state.surface, config = &surface_config)
 
-	// state.vertex_buffer = create_triangle_vertex_buffer()
 	state.vertex_buffer,state.index_buffer = create_pentagon()
 	state.module = create_shader_module(shader)
 	state.pipeline_layout = create_pipeline_layout()
@@ -243,6 +242,7 @@ main :: proc() {
 		color_attachment.loadOp = .Clear
 		color_attachment.clearValue = {0.2, 0.2, 0.4, 1.0}
 		color_attachment.storeOp = .Store
+		color_attachment.depthSlice = wgpu.DEPTH_SLICE_UNDEFINED
 
 		render_pass:wgpu.RenderPassDescriptor
 		render_pass.colorAttachmentCount = 1
@@ -271,7 +271,7 @@ main :: proc() {
 			buffer = state.index_buffer,
 			format = .Uint16,
 			offset = 0,
-			size = 120, 
+			size = 20, 
 		)
 
 		wgpu.RenderPassEncoderDrawIndexed(

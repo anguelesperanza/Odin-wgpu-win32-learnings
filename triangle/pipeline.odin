@@ -66,7 +66,7 @@ create_pipeline :: proc() -> wgpu.RenderPipeline {
 
 	pipeline_desc:wgpu.RenderPipelineDescriptor = {
 		label = "Main Pipeline",
-		layout = create_pipeline_layout(),
+		layout = state.pipeline_layout,
 		vertex = vertex_state,
 		fragment = &fragment_state,
 		primitive = primitive_triangle(),

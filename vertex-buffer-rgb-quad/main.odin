@@ -243,6 +243,7 @@ main :: proc() {
 		color_attachment.loadOp = .Clear
 		color_attachment.clearValue = {0.2, 0.2, 0.4, 1.0}
 		color_attachment.storeOp = .Store
+		color_attachment.depthSlice = wgpu.DEPTH_SLICE_UNDEFINED
 
 		render_pass:wgpu.RenderPassDescriptor
 		render_pass.colorAttachmentCount = 1

@@ -1,0 +1,4 @@
+*.exe
+*.sh
+/view-gpu-info
+/view-gpu-info/*
